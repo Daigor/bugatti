@@ -1,10 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" ng-app='app'>
 <head>
   <meta charset="UTF-8">
   <title>Bugatti</title>
+  <script src="../bower_components/angular/angular.min.js" ></script>
+  <script src="js/app.js"></script>
 </head>
 <body>
-  
+  <div ng-controller='search'>
+    <form name="searchForm" ng-submit="searchpage()">
+      <input type="text" ng-model="search" ng-change="searchLetter()"><br>
+   
+      <div ng-repeat="results in list track by $index">
+        <button ng-click="addShow($index)">{{results.Title}}</button>
+      </div>
+      <button>Search</button>
+    </form>
+  </div>
+</form>
 </body>
 </html>
