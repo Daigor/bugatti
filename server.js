@@ -8,12 +8,15 @@ var cookieParser = require('cookie-parser');
 var http = require('http');
 //bcrypt for encryption
 var bcrypt = require('bcrypt');
+var Q = require("q");
+var Promise = require("bluebird");
 //hat for token
 // var hat = require('hat');
 //session module
 var session = require('express-session');
 //get the user model from our db schema
 var User = require('./app/models/nerd.js');
+var Show = require('./app/models/showModel.js');
 var request = require('request');
 
 //connect to local database
@@ -167,25 +170,129 @@ app.post('/login', function(req, res){
 
 //for when front end posts to api/shows - this is when the user selects a show to follow
 app.post('/api/shows', function(req, response){
-  if(req.session.user) {
+  // if(req.session.user) {
     // User.findOne({username: 'kristen'}, function(err){
     //   if(err) throw err;
       request('http://www.omdbapi.com/?i='+req.body.imdbID, function(error, res, body){
         if (error) throw error;
-        User.update({username: "kristen"}, {$push: {shows: body}}, {upinsert: true}, function(err){
-          if(error) {
+        var data = JSON.parse(body);
+        User.update({username: "kristen"}, {$push: {shows: data}}, {upinsert: true}, function(err){
+          if(err) {
             console.log('error');
           } else {
-            response.send(body);
-            console.log("successfully added show to the database");
-          }
-        });
+            var array = [];
+            for(var i = 1; i < 15; i++){
+              array[i] = requestShows.bind(null, i, req.body.imdbID);
+            // requestShows(i, req.body.imdbID).then(function(data){
 
+            // }) 
+              // function(data){
+              //   if(data.Season !== undefined){
+              //     new Show({
+              //       id: req.body.imdbID,
+              //       season: data.Season,
+              //       episodes: data.Episodes
+              //     }).save(function(err, data){
+              //       if(err)throw err;
+              //     })
+            }
+      
+            Promise.each(array, function(command){
+             
+              return command().then(function(data){
+                console.log(data);
+                // if(data.Season !== undefined){
+                //   new Show({
+                //     id: req.body.imdbID,
+                //     season: data.Season,
+                //     episodes: data.Episodes
+                //   }).save(function(err, data){
+                //     if (err) throw err;
+                //     console.log('saved');
+                //   }).then(function(){
+                //     return;
+                //   })
+                // } else {
+                //   return;
+                // }
+              });
+            }).then(function(){
+              Show.find({id: req.body.imdbID}, function(err, data){
+                if(err){
+                  throw err
+                } else {
+                  console.log(data);
+                }
+              })
+            })
+          }
+        })
+     
+            //data.Seasons = 
+        response.send(data);
+          
       });
-    // });
-  } else {
-    res.redirect('/login');
-  }
 });
+    // });
+  // } else {
+  //   res.redirect('/login');
+  // }
+
+
+app.post('/api/dates', function(req, res){
+  
+
+})
+
+
+var requestShows = function(seasonNumber, id){
+  return new Promise(function(resolve, reject){
+    request('http://www.omdbapi.com?i='+id+"&Season="+ seasonNumber, function(error, res, body){
+      if(error){
+        reject();
+      } else {
+        resolve(JSON.parse(body));
+      }
+    })
+  })
+}
+
+// new User({
+//   username: "kristen",
+//   password: 'hi'
+// }).save(function(err, data){
+//   if(err)throw err
+//   console.log('kristen user made');
+// })
+function promiseWhile(condition, body) {
+    var done = Q.defer();
+
+    function loop() {
+        // When the result of calling `condition` is no longer true, we are
+        // done.
+        if (!condition()) return done.resolve();
+        // Use `when`, in case `body` does not return a promise.
+        // When it completes loop again otherwise, if it fails, reject the
+        // done promise
+        Q.when(body(), loop, done.reject);
+    }
+
+    // Start running the loop in the next tick so that this function is
+    // completely async. It would be unexpected if `body` was called
+    // synchronously the first time.
+    Q.nextTick(loop);
+
+    // The promise
+    return done.promise;
+}
+// var index = 1;
+// promiseWhile(function () { return index <= 11; }, function () {
+//     console.log(index);
+//     index++;
+//     return Q.delay(500); // arbitrary async
+// }).then(function () {
+//     console.log("done");
+// }).done();
+
 
 
